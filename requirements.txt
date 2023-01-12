@@ -20,6 +20,7 @@ meraki==1.27.0
 msgpack==1.0.4
 multidict==6.0.2
 nrfutil==6.0.0a1
+openai==0.26.0
 packaging==21.3
 pc-ble-driver-py==0.17.0
 pep517==0.13.0
