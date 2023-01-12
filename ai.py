@@ -25,8 +25,14 @@ model_engine = "text-davinci-003" # "chatGPT"
 
 #print(openai.Model.list())
 
-# Set the prompt and generate text
-prompt = "What is the best way to work out the value of PI"
-completions = openai.Completion.create(engine=model_engine, prompt=prompt, max_tokens=1024, n=1, stop=None, temperature=0.5)
-message = completions.choices[0].text
-print(message)
+def main():
+    while True:
+        # Set the prompt and generate text
+        prompt = input('openai> ')
+        #prompt = "What is the best way to work out the value of PI"
+        completions = openai.Completion.create(engine=model_engine, prompt=prompt, max_tokens=1024, n=1, stop=None, temperature=0.5)
+        message = completions.choices[0].text
+        print(message)
+
+if __name__ == "__main__":
+    main()
