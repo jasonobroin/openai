@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 '''
-Code to interface with the OpenAI system, such as chatGPT
+Code to interface with the OpenAI system, using non-chat models
 
 Notes
 
@@ -9,9 +9,9 @@ Notes
 
 Issues
 
-* There isn't an chatGPT model - there are access to underlying models (such as text completion, code help etc.
-* These don't have history - you need to feel back in previous responses to do that (which might use tokens?)
-
+* There isn't the chatGPT model - its using the older interface (v1/completions) rather than (v1/chat/completions)
+  and provides access to underlying models (such as text completion, code help etc). The interface is not intended
+  for a chat style usage.
 '''
 
 import argparse
