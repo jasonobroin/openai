@@ -27,26 +27,52 @@ import textwrap
 openai.api_key = os.environ['OPENAI_API_KEY']
 
 
-class Conversation:
-    """Define an entry in a conversation"""
-    # TODO: Perhaps this isn't a Conversation, but a Turn?
+class Turn:
+    """Define an turn in a conversation"""
 
     def __init__(self, role, content):
         self.role = role
         self.content = content
 
     def to_dict(self):
-        """Convert a Conversation (really a Turn) into a dictionary entry"""
-        # Note I think we really want this class to contain a list, and to_dict should walk the whole list
+        """Convert a Turn into a dictionary entry"""
         return {"role": self.role, "content": self.content}
 
 
-def getMessage(conversation: Conversation):
-    """Convert a Conversation into a message list"""
-    message = []
-    for conv in conversation:
-        message.append({"role": conv.role, "content": conv.content})
-    return message
+class Conversation:
+    def __init__(self):
+        self.turns = []
+
+    def add_turn(self, role, content):
+        turn = Turn(role, content)
+        self.turns.append(turn)
+
+    def to_message(self):
+        """Convert a Conversation into a message list"""
+        message = []
+        for conv in self.turns:
+            message.append({"role": conv.role, "content": conv.content})
+        return message
+
+    def to_dict(self):
+        """Convert a Conversation into a dictionary"""
+        return {"chat": [obj.to_dict() for obj in self.turns]}
+
+    def clear(self):
+        """Clear the list"""
+        self.turns.clear()
+
+    def set_system_role(self, role):
+        """Set the system role for this conversation"""
+        # TODO: Perhaps always do this in the first slot?
+        self.add_turn("system", role)
+
+    def __str__(self):
+        conversation_str = ""
+        for turn in self.turns:
+            conversation_str += f"{turn.role}: {turn.content}\n"
+        return conversation_str
+
 
 
 _print = print
@@ -93,9 +119,7 @@ def write_chat(args, conversation):
     if not os.path.exists(args.directory):
         os.makedirs(args.directory)
 
-    # convert list of objects to dictionary
-    # TODO: Make this a function? On the Conversation?
-    my_dict = {"chat": [obj.to_dict() for obj in conversation]}
+    my_dict = conversation.to_dict()
 
     file_path = args.directory + "/" + start_time
 
@@ -105,33 +129,42 @@ def write_chat(args, conversation):
     print(f"stored chat as {file_path}")
 
 
+def take_turn(conversation, message):
+    """Interface to support discord - record user message, ask openai and record (and return) response"""
+    conversation.add_turn("user", message)
+    messages = conversation.to_message()
+    response = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages, n=1, stop=None,
+                                            temperature=0.6)
+    reply = response.choices[0].message.content
+    conversation.add_turn("assistant", reply)
+    return reply
+
 def chat(args):
     """Provide a bidirectional user chat interface to openAPI's chat model"""
     print(f"System role: {args.role}")
 
-    # TODO: We have a list of Conversation objects - but isn't that our conversation?
-    # I think we want Turns, and have Conversation be a list of Turns?
-    conversation = [Conversation("system", args.role)]
+    conversation = Conversation()
+    conversation.add_turn("system", args.role)
     try:
         while True:
             # Set the prompt and generate text
             prompt = input('openai> ')
 
-            end_markers = ["stop", "end", "finish", "done", "complete"]
+            end_markers = ["stop", "end", "finish", "done", "complete", "exit", "quit"]
             if prompt.lower() in end_markers:
                 print("Chat finished")
                 if args.store:
                     write_chat(args, conversation)
                 break
 
-            conversation.append(Conversation("user", prompt))
-            messages = getMessage(conversation)
+            conversation.add_turn("user", prompt)
+            messages = conversation.to_message()
             if args.debug:
                 print(messages)
             response = openai.ChatCompletion.create(model=args.model, messages=messages, n=1, stop=None,
                                                     temperature=args.temperature)
             reply = response.choices[0].message.content
-            conversation.append(Conversation("assistant", reply))
+            conversation.add_turn("assistant", reply)
 
             paragraph = str.splitlines(reply)
             for lines in paragraph:
