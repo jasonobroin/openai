@@ -116,21 +116,23 @@ def list_models():
     print()
 
 
-def write_chat(args, conversation):
+def write_chat(directory, conv_time, conversation):
     """Write a chat to a file, creating the directory if required"""
 
     # Create directory if required
-    if not os.path.exists(args.directory):
-        os.makedirs(args.directory)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
     my_dict = conversation.to_dict()
 
-    file_path = args.directory + "/" + start_time
+    file_path = directory + "/" + conv_time
+    print(f"write to {file_path}")
 
     with open(file_path, "w") as file:
         json.dump(my_dict, file)
 
     print(f"stored chat as {file_path}")
+    return file_path
 
 
 def take_turn(conversation, message):
@@ -158,7 +160,7 @@ def chat(args):
             if prompt.lower() in end_markers:
                 print("Chat finished")
                 if args.store:
-                    write_chat(args, conversation)
+                    write_chat(args.directory, start_time, conversation)
                 break
 
             conversation.add_turn("user", prompt)
@@ -183,11 +185,11 @@ def chat(args):
     except KeyboardInterrupt:
         print('exiting')
         if args.store:
-            write_chat(args, conversation)
+            write_chat(args.directory, start_time, conversation)
     except EOFError:
         print('exiting')
         if args.store:
-            write_chat(args, conversation)
+            write_chat(args.directory, start_time, conversation)
 
 
 def main():

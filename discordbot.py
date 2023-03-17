@@ -19,6 +19,8 @@ TODO
 # Notes
 # Installed discord and python-dotenv packages
 
+from datetime import datetime
+import argparse
 import logging
 import json
 import os
@@ -42,6 +44,19 @@ client = commands.Bot(command_prefix=COMMAND_PREFIX, description=DESCRIPTION, in
 token = os.getenv('DISCORD_TOKEN')
 
 conversation = chatai.Conversation()
+
+def get_args():
+    """Get command-line arguments"""
+
+    parser = argparse.ArgumentParser(
+        description="Interface to chatGPT discord-bot",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument("-f", "--directory", help="Directory to store chats", default="discord_chats")
+
+    return parser.parse_args()
+
 
 def set_system_role(system_role=None):
     if system_role is None:
@@ -118,12 +133,14 @@ async def test(ctx):
 
 @client.command(aliases=['new', 'newconv', 'reset'])
 async def clear(ctx):
+    """Start a new conversation"""
     conversation.clear()
     set_system_role()
     await ctx.send("Starting a new conversation")
 
 @client.command(aliases=['system_role', 'sysrole', 'system'])
 async def role(ctx, *sysrole):
+    """Specify what role chatGPT should take and start a new conversation"""
     if len(sysrole) == 0:
         msg = f"Current system role: {get_system_role()}"
     else:
@@ -133,8 +150,21 @@ async def role(ctx, *sysrole):
         msg = f"Starting a new conversation with system role: {role_str}"
     await ctx.send(msg)
 
+
+@client.command(aliases=['store', 'record'])
+async def save(ctx, *sysrole):
+    """Store a chat to a file"""
+    save_time = datetime.now()
+    save_time = save_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    filename = chatai.write_chat(args.directory, save_time, conversation)
+    msg = f'Chat written to {filename}'
+    await ctx.send(msg)
+
+
 @client.command()
 async def report(ctx):
+    """Provide a JSON report of the current conversation"""
     # This should be its own helper function. One issue here is that there
     # will be a line break if the split is midline
 
@@ -171,6 +201,9 @@ async def report(ctx):
 
 
 def main():
+    global args
+    args = get_args()
+
     client.run(token, log_handler=handler)
 
 
