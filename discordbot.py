@@ -54,6 +54,7 @@ def get_args():
     )
 
     parser.add_argument("-f", "--directory", help="Directory to store chats", default="discord_chats")
+    parser.add_argument("-m", "--model", help="Select the model to use", default="gpt-3.5-turbo") # gpt-4
 
     return parser.parse_args()
 
@@ -82,9 +83,9 @@ async def on_member_join(member):
 async def on_member_remove(member):
     print(f'{member} has left a server')
 
-def process_chat_turn(message):
+def process_chat_turn(message, model):
     print(f"user asks: {message}")
-    response = chatai.take_turn(conversation, message)
+    response = chatai.take_turn(conversation, model, message)
     print(f"assistant responses: {response}")
 
     # This should be its own helper function. One issue here is that there
@@ -119,7 +120,7 @@ async def on_message(message):
         await client.process_commands(message)
     else:
         # Now interface with chatai
-        response_chunks = process_chat_turn(message.content)
+        response_chunks = process_chat_turn(message.content, args.model)
 
         # Send each chunk as a separate message
         for chunk in response_chunks:

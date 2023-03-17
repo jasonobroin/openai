@@ -96,7 +96,7 @@ def get_args():
 
     parser.add_argument("-l", "--list-models", help="List available models", action="store_true")
     parser.add_argument("-t", "--temperature", help="Set the model's temperature from 0 to 1. 0 is more predictable; 1 more creative", type=float, default=0.6)
-    parser.add_argument("-m", "--model", help="Select the model to use", default="gpt-3.5-turbo")
+    parser.add_argument("-m", "--model", help="Select the model to use", default="gpt-3.5-turbo") # gpt-4
     parser.add_argument("-u", "--usage", help="Report usage", action="store_true")
     parser.add_argument("-d", "--debug", help="Report debug info", action="store_true")
     parser.add_argument("-r", "--role", help="Describe the system's role", default="You are a helpful assistant")
@@ -135,11 +135,11 @@ def write_chat(directory, conv_time, conversation):
     return file_path
 
 
-def take_turn(conversation, message):
+def take_turn(conversation, model, message):
     """Interface to support discord - record user message, ask openai and record (and return) response"""
     conversation.add_turn("user", message)
     messages = conversation.to_message()
-    response = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages, n=1, stop=None,
+    response = openai.ChatCompletion.create(model=model, messages=messages, n=1, stop=None,
                                             temperature=0.6)
     reply = response.choices[0].message.content
     conversation.add_turn("assistant", reply)
