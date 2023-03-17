@@ -10,7 +10,7 @@ TODO
 * Add . commands to allow changing of parameters (such as temperature)
   and regenerating responses. Perhaps look at automatically threading conversations should there is
   natural interface for multiple conversations
-* Add .commands to set the system role, and possibly define a few default ones that can be specified
+* Define a few default system roles that can be easily selected
 * Allow interface to different models, such as images
 * Log output into different chats
 
@@ -19,34 +19,38 @@ TODO
 # Notes
 # Installed discord and python-dotenv packages
 
+import logging
+import json
+import os
+
 import discord
 from discord.ext import commands
 import chatai
-import json
-import os
-import random
-
-import subprocess
-import logging
 
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 
-description = '''Discord frontend to openAI'''
+DESCRIPTION = '''Discord frontend to openAI'''
 
 intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 
-command_prefix = '.'
+COMMAND_PREFIX = '.'
 
-client = commands.Bot(command_prefix=command_prefix, description=description, intents=intents)
+client = commands.Bot(command_prefix=COMMAND_PREFIX, description=DESCRIPTION, intents=intents)
 
 token = os.getenv('DISCORD_TOKEN')
 
 conversation = chatai.Conversation()
 
-def set_system_role():
-    conversation.set_system_role("You are a helpful assistant")
+def set_system_role(system_role=None):
+    if system_role is None:
+        conversation.set_system_role("You are a helpful assistant")
+    else:
+        conversation.set_system_role(system_role)
+
+def get_system_role():
+    return conversation.get_system_role()
 
 @client.event
 async def on_ready():
@@ -63,6 +67,31 @@ async def on_member_join(member):
 async def on_member_remove(member):
     print(f'{member} has left a server')
 
+def process_chat_turn(message):
+    print(f"user asks: {message}")
+    response = chatai.take_turn(conversation, message)
+    print(f"assistant responses: {response}")
+
+    # This should be its own helper function. One issue here is that there
+    # will be a line break if the split is midline
+
+    # Discord has a 2000 character response limit - Split the response into
+    # chunks of 1900 characters or less, and also prevent splitting in the
+    # middle of a line; we use 1900 to give plenty of room for any additional
+    # message overhead
+
+    response_chunks = []
+    chunk = ""
+    for line in response.split("\n"):
+        if len(chunk) + len(line) + 1 > 1900:
+            response_chunks.append(chunk)
+            chunk = ""
+        chunk += line + "\n"
+    response_chunks.append(chunk)
+
+    return response_chunks
+
+
 @client.event
 async def on_message(message):
     if message.author == client.user:
@@ -71,30 +100,11 @@ async def on_message(message):
     # Ensure we can handle commands; if not a command, treat it as chat input
     # We also ignore slash commands... note we don't ignore the response from
     # something like /giphy - presumably that comes from a different client?
-    if message.content[0] == command_prefix or message.content[0] == '/':
+    if message.content[0] == COMMAND_PREFIX or message.content[0] == '/':
         await client.process_commands(message)
     else:
         # Now interface with chatai
-        print(f"user asks: {message.content}")
-        response = chatai.take_turn(conversation, message.content)
-        print(f"assistant responses: {response}")
-
-        # This should be its own helper function. One issue here is that there
-        # will be a line break if the split is midline
-
-        # Discord has a 2000 character response limit - Split the response into
-        # chunks of 1900 characters or less, and also prevent splitting in the
-        # middle of a line; we use 1900 to give plenty of room for any additional
-        # message overhead
-
-        response_chunks = []
-        chunk = ""
-        for line in response.split("\n"):
-            if len(chunk) + len(line) + 1 > 1900:
-                response_chunks.append(chunk)
-                chunk = ""
-            chunk += line + "\n"
-        response_chunks.append(chunk)
+        response_chunks = process_chat_turn(message.content)
 
         # Send each chunk as a separate message
         for chunk in response_chunks:
@@ -106,12 +116,22 @@ async def test(ctx):
     message = f"Author: {ctx.author}\nServer: {ctx.guild}\nChannel: {ctx.channel}\nMessage: {ctx.message.content}"
     await ctx.send(message)
 
-@client.command(aliases=['new', 'newconv'])
+@client.command(aliases=['new', 'newconv', 'reset'])
 async def clear(ctx):
     conversation.clear()
     set_system_role()
     await ctx.send("Starting a new conversation")
 
+@client.command(aliases=['system_role', 'sysrole', 'system'])
+async def role(ctx, *sysrole):
+    if len(sysrole) == 0:
+        msg = f"Current system role: {get_system_role()}"
+    else:
+        role_str = ' '.join(sysrole)
+        conversation.clear()
+        set_system_role(role_str)
+        msg = f"Starting a new conversation with system role: {role_str}"
+    await ctx.send(msg)
 
 @client.command()
 async def report(ctx):
@@ -149,4 +169,11 @@ async def report(ctx):
         await ctx.send(chunk)
     print("Sent .report response")
 
-client.run(token, log_handler=handler)
+
+def main():
+    client.run(token, log_handler=handler)
+
+
+if __name__ == "__main__":
+    main()
+

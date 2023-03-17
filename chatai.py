@@ -17,9 +17,9 @@ from datetime import datetime
 
 import argparse
 import json
-import openai
 import os
 import textwrap
+import openai
 
 
 # Set the API key and model
@@ -66,6 +66,10 @@ class Conversation:
         """Set the system role for this conversation"""
         # TODO: Perhaps always do this in the first slot?
         self.add_turn("system", role)
+
+    def get_system_role(self):
+        """Get the current system role for this conversation"""
+        return self.turns[0].content
 
     def __str__(self):
         conversation_str = ""
