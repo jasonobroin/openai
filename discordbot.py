@@ -41,7 +41,7 @@ COMMAND_PREFIX = '.'
 
 client = commands.Bot(command_prefix=COMMAND_PREFIX, description=DESCRIPTION, intents=intents)
 
-token = os.getenv('DISCORD_TOKEN')
+token = os.getenv('DISCORD_CHATGPT_BOT_TOKEN')
 
 conversation = chatai.Conversation()
 
