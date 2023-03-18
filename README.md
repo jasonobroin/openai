@@ -1,11 +1,37 @@
 # openai interface
 
 Interface and example code for using openAI's python AI, including original completion interface,
-image interface and chat interface. An example Discord chatbot is provided.
+image interface and chat interface. An example Discord chatGPT bot is provided.
 
 # Discord Chat Bot
 
 application: [discordbot.py](discordbot.py)
+
+```
+./discordbot.py --help
+usage: discordbot.py [-h] [-f DIRECTORY] [-m MODEL]
+
+Interface to chatGPT discord-bot
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -f DIRECTORY, --directory DIRECTORY
+                        Directory to store chats (default: discord_chats)
+  -m MODEL, --model MODEL
+                        Select the model to use (default: gpt-3.5-turbo)
+```
+
+## Usage
+
+* Have a conversation in any channel on your server; currently discord-bot is not restricted to particular channels
+* To start a new conversation, use **.clear**, **.new**, **.reset**, **.newconv**
+* To report the current system role, use **.role**, **.system**, **.sysrole**, **.system_role**
+* To change the system role and start a new conversation, use **.role** _<system role info>_, or alias
+* To save the current conversation use **.save**, **.store**, **.record**
+  * Conversations are stored as JSON objects in the _**discord_chats**_ directory
+  * Conversations are named using the time the conversation is stored
+  * The log directory can be specified as a command parameter when discordbot.py is run
+* Use **.report** to show the complete conversation as a JSON object
 
 ## Create a new bot in Discord
 
@@ -41,4 +67,6 @@ Additionally, you need to allow the bot access to your Discord via OAuth2
   * Use .commands to do operations like start/stop conversations, change temperature, regenerate responses etc.
   * Allow multiple threads for multiple chats
   * .commands to change behavior to different models (like images)
+  * The bot will respond on any channel in the server; it would be better it is monitor specific channels
+  * There is only one global conversation; there should be unique conversations to each channel (or possibly thread)
 
