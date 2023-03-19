@@ -150,7 +150,7 @@ async def test(ctx):
 async def clear(ctx):
     """Start a new conversation"""
     conversation[ctx.channel.name].clear()
-    set_system_role(ctx.channel.name)
+    set_system_role(conversation[ctx.channel.name])
     await ctx.send("Starting a new conversation")
 
 @client.command(aliases=['system_role', 'sysrole', 'system'])
