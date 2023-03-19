@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
-"""Discord frontend to openAI interface
+"""Discord frontend to chatGPT interface
+
+Manages conversations, organized by Discord channel
 
 TODO
 
@@ -43,7 +45,8 @@ client = commands.Bot(command_prefix=COMMAND_PREFIX, description=DESCRIPTION, in
 
 token = os.getenv('DISCORD_CHATGPT_BOT_TOKEN')
 
-conversation = chatai.Conversation()
+# Create a dictionary of conversations, keyed off the Discord channel name
+conversation = {}
 
 def get_args():
     """Get command-line arguments"""
@@ -59,19 +62,29 @@ def get_args():
     return parser.parse_args()
 
 
-def set_system_role(system_role=None):
+def set_system_role(conversation, system_role=None):
     if system_role is None:
         conversation.set_system_role("You are a helpful assistant")
     else:
         conversation.set_system_role(system_role)
 
-def get_system_role():
+def get_system_role(conversation):
     return conversation.get_system_role()
 
 @client.event
 async def on_ready():
     print("Logged in as a bot {0.user}".format(client))
-    set_system_role()
+    for channel in client.get_all_channels():
+        if isinstance(channel, discord.TextChannel):
+            conversation[channel.name] = chatai.Conversation()
+            print(f'Created a conversation for {channel.name}')
+            # channels[channel.id] = {
+            #     'name': channel.name,
+            #     'topic': channel.topic,
+            #     'type': 'text'
+            # }
+            set_system_role(conversation[channel.name])
+        # Not handling VoiceChannel or CategoryChannel
     # Not recommended to do this in on_ready()
 #    await client.change_presence(status=discord.Status.idle, activity=discord.Game('Hello there'))
 
@@ -83,9 +96,9 @@ async def on_member_join(member):
 async def on_member_remove(member):
     print(f'{member} has left a server')
 
-def process_chat_turn(message, model):
+def process_chat_turn(channel, message, model):
     print(f"user asks: {message}")
-    response = chatai.take_turn(conversation, model, message)
+    response = chatai.take_turn(conversation[channel], model, message)
     print(f"assistant responses: {response}")
 
     # This should be its own helper function. One issue here is that there
@@ -120,7 +133,8 @@ async def on_message(message):
         await client.process_commands(message)
     else:
         # Now interface with chatai
-        response_chunks = process_chat_turn(message.content, args.model)
+        print(f'conversation on channel {message.channel.name}')
+        response_chunks = process_chat_turn(message.channel.name, message.content, args.model)
 
         # Send each chunk as a separate message
         for chunk in response_chunks:
@@ -135,19 +149,19 @@ async def test(ctx):
 @client.command(aliases=['new', 'newconv', 'reset'])
 async def clear(ctx):
     """Start a new conversation"""
-    conversation.clear()
-    set_system_role()
+    conversation[ctx.channel.name].clear()
+    set_system_role(ctx.channel.name)
     await ctx.send("Starting a new conversation")
 
 @client.command(aliases=['system_role', 'sysrole', 'system'])
 async def role(ctx, *sysrole):
     """Specify what role chatGPT should take and start a new conversation"""
     if len(sysrole) == 0:
-        msg = f"Current system role: {get_system_role()}"
+        msg = f"Current system role: {get_system_role(conversation[ctx.channel.name])}"
     else:
         role_str = ' '.join(sysrole)
-        conversation.clear()
-        set_system_role(role_str)
+        conversation[ctx.channel.name].clear()
+        set_system_role(conversation[ctx.channel.name], role_str)
         msg = f"Starting a new conversation with system role: {role_str}"
     await ctx.send(msg)
 
@@ -158,7 +172,7 @@ async def save(ctx, *sysrole):
     save_time = datetime.now()
     save_time = save_time.strftime("%Y-%m-%d %H:%M:%S")
 
-    filename = chatai.write_chat(args.directory, save_time, conversation)
+    filename = chatai.write_chat(args.directory, save_time, conversation[ctx.channel.name])
     msg = f'Chat written to {filename}'
     await ctx.send(msg)
 
@@ -169,7 +183,7 @@ async def report(ctx):
     # This should be its own helper function. One issue here is that there
     # will be a line break if the split is midline
 
-    response = conversation.to_message()
+    response = conversation[ctx.channel.name].to_message()
 
     # Convert the dictionary to a JSON string so it displays nicer
     json_str = json.dumps(response, indent=4)
