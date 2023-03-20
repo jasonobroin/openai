@@ -2,7 +2,7 @@
 
 """Discord frontend to chatGPT interface
 
-Manages conversations, organized by Discord channel
+Manages conversations, organized by Discord server, author and channel
 
 TODO
 
@@ -46,7 +46,8 @@ client = commands.Bot(command_prefix=COMMAND_PREFIX, description=DESCRIPTION, in
 token = os.getenv('DISCORD_CHATGPT_BOT_TOKEN')
 
 # Create a dictionary of conversations, keyed off the Discord channel name
-conversation = {}
+conversations = {}
+
 
 def get_args():
     """Get command-line arguments"""
@@ -71,20 +72,21 @@ def set_system_role(conversation, system_role=None):
 def get_system_role(conversation):
     return conversation.get_system_role()
 
+def get_conversation(author_id, server_id, channel_id):
+#    print(f'get_conversation on server {server_id} author {author_id} channel {channel_id}')
+
+    if server_id not in conversations:
+        conversations[server_id] = {}
+    if author_id not in conversations[server_id]:
+        conversations[server_id][author_id] = {}
+    if channel_id not in conversations[server_id][author_id]:
+        conversations[server_id][author_id][channel_id] = chatai.Conversation()
+        set_system_role(conversations[server_id][author_id][channel_id])
+    return conversations[server_id][author_id][channel_id]
+
 @client.event
 async def on_ready():
     print("Logged in as a bot {0.user}".format(client))
-    for channel in client.get_all_channels():
-        if isinstance(channel, discord.TextChannel):
-            conversation[channel.name] = chatai.Conversation()
-            print(f'Created a conversation for {channel.name}')
-            # channels[channel.id] = {
-            #     'name': channel.name,
-            #     'topic': channel.topic,
-            #     'type': 'text'
-            # }
-            set_system_role(conversation[channel.name])
-        # Not handling VoiceChannel or CategoryChannel
     # Not recommended to do this in on_ready()
 #    await client.change_presence(status=discord.Status.idle, activity=discord.Game('Hello there'))
 
@@ -96,9 +98,9 @@ async def on_member_join(member):
 async def on_member_remove(member):
     print(f'{member} has left a server')
 
-def process_chat_turn(channel, message, model):
+def process_chat_turn(conversation, message, model):
     print(f"user asks: {message}")
-    response = chatai.take_turn(conversation[channel], model, message)
+    response = chatai.take_turn(conversation, model, message)
     print(f"assistant responses: {response}")
 
     # This should be its own helper function. One issue here is that there
@@ -133,8 +135,8 @@ async def on_message(message):
         await client.process_commands(message)
     else:
         # Now interface with chatai
-        print(f'conversation on channel {message.channel.name}')
-        response_chunks = process_chat_turn(message.channel.name, message.content, args.model)
+        conversation = get_conversation(message.author.name, message.guild.name, message.channel.name)
+        response_chunks = process_chat_turn(conversation, message.content, args.model)
 
         # Send each chunk as a separate message
         for chunk in response_chunks:
@@ -143,25 +145,28 @@ async def on_message(message):
 @client.command()
 async def test(ctx):
     '''Test stuff!!'''
-    message = f"Author: {ctx.author}\nServer: {ctx.guild}\nChannel: {ctx.channel}\nMessage: {ctx.message.content}"
+    message = f"Author: {ctx.author.name}\nServer: {ctx.guild.name}\nChannel: {ctx.channel.name}\nMessage: {ctx.message.content}"
     await ctx.send(message)
 
 @client.command(aliases=['new', 'newconv', 'reset'])
 async def clear(ctx):
     """Start a new conversation"""
-    conversation[ctx.channel.name].clear()
-    set_system_role(conversation[ctx.channel.name])
+    conversation = get_conversation(ctx.author.name, ctx.guild.name, ctx.channel.name)
+    conversation.clear()
+    set_system_role(conversation)
     await ctx.send("Starting a new conversation")
 
 @client.command(aliases=['system_role', 'sysrole', 'system'])
 async def role(ctx, *sysrole):
     """Specify what role chatGPT should take and start a new conversation"""
+    conversation = get_conversation(ctx.author.name, ctx.guild.name, ctx.channel.name)
+
     if len(sysrole) == 0:
-        msg = f"Current system role: {get_system_role(conversation[ctx.channel.name])}"
+        msg = f"Current system role: {get_system_role(conversation)}"
     else:
         role_str = ' '.join(sysrole)
-        conversation[ctx.channel.name].clear()
-        set_system_role(conversation[ctx.channel.name], role_str)
+        conversation.clear()
+        set_system_role(conversation, role_str)
         msg = f"Starting a new conversation with system role: {role_str}"
     await ctx.send(msg)
 
@@ -172,7 +177,8 @@ async def save(ctx, *sysrole):
     save_time = datetime.now()
     save_time = save_time.strftime("%Y-%m-%d %H:%M:%S")
 
-    filename = chatai.write_chat(args.directory, save_time, conversation[ctx.channel.name])
+    conversation = get_conversation(ctx.author.name, ctx.guild.name, ctx.channel.name)
+    filename = chatai.write_chat(args.directory, save_time, conversation)
     msg = f'Chat written to {filename}'
     await ctx.send(msg)
 
@@ -183,7 +189,8 @@ async def report(ctx):
     # This should be its own helper function. One issue here is that there
     # will be a line break if the split is midline
 
-    response = conversation[ctx.channel.name].to_message()
+    conversation = get_conversation(ctx.author.name, ctx.guild.name, ctx.channel.name)
+    response = conversation.to_message()
 
     # Convert the dictionary to a JSON string so it displays nicer
     json_str = json.dumps(response, indent=4)
@@ -214,6 +221,15 @@ async def report(ctx):
         await ctx.send(chunk)
     print("Sent .report response")
 
+@client.command()
+async def chats(ctx):
+    """Report summary information on all chats"""
+    for serv in conversations:
+        for auth in conversations[serv]:
+            for chan in conversations[serv][auth]:
+                msg = f"Chat stored for Server: {serv} Author: {auth} Chan: {chan} with {int(conversations[serv][auth][chan].num_turns())} entries"
+                await ctx.send(msg)
+    await ctx.send("End of chats")
 
 def main():
     global args

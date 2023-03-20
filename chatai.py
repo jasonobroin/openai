@@ -71,6 +71,10 @@ class Conversation:
         """Get the current system role for this conversation"""
         return self.turns[0].content
 
+    def num_turns(self):
+        """Return the number of turns in the conversation"""
+        return (len(self.turns)-1) / 2
+
     def __str__(self):
         conversation_str = ""
         for turn in self.turns:
