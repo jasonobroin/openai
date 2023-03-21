@@ -135,6 +135,8 @@ async def on_message(message):
         await client.process_commands(message)
     else:
         # Now interface with chatai
+        await message.channel.typing()  # Simulate typing
+
         conversation = get_conversation(message.author.name, message.guild.name, message.channel.name)
         response_chunks = process_chat_turn(conversation, message.content, args.model)
 
