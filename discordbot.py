@@ -14,7 +14,6 @@ TODO
   natural interface for multiple conversations
 * Define a few default system roles that can be easily selected
 * Allow interface to different models, such as images
-* Log output into different chats
 
 """
 
@@ -45,9 +44,8 @@ client = commands.Bot(command_prefix=COMMAND_PREFIX, description=DESCRIPTION, in
 
 token = os.getenv('DISCORD_CHATGPT_BOT_TOKEN')
 
-# Create a dictionary of conversations, keyed off the Discord channel name
+# Create a dictionary of conversations
 conversations = {}
-
 
 def get_args():
     """Get command-line arguments"""

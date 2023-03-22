@@ -38,6 +38,7 @@ PyYAML==6.0
 reactivex==4.0.4
 requests==2.27.1
 six==1.16.0
+slack_bolt=1.16.4
 tomli==2.0.1
 tqdm==4.64.1
 typing_extensions==4.4.0
