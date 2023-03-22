@@ -60,7 +60,7 @@ Additionally, you need to allow the bot access to your Discord via OAuth2
 
 # Slack ChatGPT Bot 
 
-application: [slashbot.py](slashbot.py)
+application: [slackbot.py](slackbot.py)
 
 ## Create a new bot in Slack
 
