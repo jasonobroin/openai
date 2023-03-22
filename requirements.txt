@@ -13,17 +13,12 @@ discord.py==2.2.2
 ecdsa==0.18.0
 frozenlist==1.3.0
 idna==3.3
-influxdb==5.3.1
-influxdb-client==1.35.0
 intelhex==2.3.0
 libusb1==3.0.0
-meraki==1.27.0
 msgpack==1.0.4
 multidict==6.0.2
-nrfutil==6.0.0a1
 openai==0.27.0
 packaging==21.3
-pc-ble-driver-py==0.17.0
 pep517==0.13.0
 piccata==2.0.1
 pip-tools==6.11.0
