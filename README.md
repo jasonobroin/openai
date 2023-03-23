@@ -80,7 +80,7 @@ application: [slackbot.py](slackbot.py)
 ## Adding commands
 
 * Slash command entries need to be added for the bot on https://api.slack.com/
-  * Add **/new**, **/report**, **/chats**
+  * Add **/new**, **/report**, **/chats**, **/save**
 
 ## Event API
 

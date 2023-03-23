@@ -20,6 +20,7 @@ TODO
 
 import argparse
 import chatai
+from datetime import datetime
 import json
 import os
 
@@ -41,7 +42,7 @@ def get_args():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument("-f", "--directory", help="Directory to store chats", default="discord_chats")
+    parser.add_argument("-f", "--directory", help="Directory to store chats", default="slack_chats")
     parser.add_argument("-m", "--model", help="Select the model to use", default="gpt-3.5-turbo") # gpt-4
 
     return parser.parse_args()
@@ -159,6 +160,21 @@ def handle_chat_command(ack, body, respond):
             msg = f"Chat stored User: {user} Chan: {chan} with {int(conversations[user][chan].num_turns())} entries"
             respond (msg)
     respond("End of chats")
+
+@app.command("/save")
+def handle_save_command(ack, body, respond):
+    """Store a chat to a file"""
+    save_time = datetime.now()
+    save_time = save_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    ack()
+
+    user = body['user_id']
+    channel = body['channel_id']
+    conversation = get_conversation(user, channel)
+    filename = chatai.write_chat(args.directory, save_time, conversation)
+    msg = f'Chat written to {filename}'
+    respond(msg)
 
 
 def main():
