@@ -126,6 +126,10 @@ async def on_message(message):
     if message.author == client.user:
         return
 
+    # Don't process responses from bots
+    if message.author.bot:
+        return
+
     # Ensure we can handle commands; if not a command, treat it as chat input
     # We also ignore slash commands... note we don't ignore the response from
     # something like /giphy - presumably that comes from a different client?
