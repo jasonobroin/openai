@@ -56,7 +56,7 @@ def get_args():
     )
 
     parser.add_argument("-f", "--directory", help="Directory to store chats", default="discord_chats")
-    parser.add_argument("-m", "--model", help="Select the model to use", default="gpt-3.5-turbo") # gpt-4
+    parser.add_argument("-m", "--model", help="Select the model to use", default="gpt-4") # gpt-4
 
     return parser.parse_args()
 
