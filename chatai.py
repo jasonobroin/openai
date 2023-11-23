@@ -19,12 +19,14 @@ import argparse
 import json
 import os
 import textwrap
-import openai
+from openai import OpenAI
+
+client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
 
 
 # Set the API key and model
 
-openai.api_key = os.environ['OPENAI_API_KEY']
+
 
 
 class Turn:
@@ -112,7 +114,7 @@ def get_args():
 
 def list_models():
     """List the various model types - current flat, but would be interesting to show hierarchy"""
-    models = openai.Model.list()
+    models = client.models.list()
 #    print(models)
 
     for model in models["data"]:
@@ -143,7 +145,7 @@ def take_turn(conversation, model, message):
     """Interface to support discord - record user message, ask openai and record (and return) response"""
     conversation.add_turn("user", message)
     messages = conversation.to_message()
-    response = openai.ChatCompletion.create(model=model, messages=messages, n=1, stop=None,
+    response = client.chat.completions.create(model=model, messages=messages, n=1, stop=None,
                                             temperature=0.6)
     reply = response.choices[0].message.content
     conversation.add_turn("assistant", reply)
@@ -171,7 +173,7 @@ def chat(args):
             messages = conversation.to_message()
             if args.debug:
                 print(messages)
-            response = openai.ChatCompletion.create(model=args.model, messages=messages, n=1, stop=None,
+            response = client.chat.completions.create(model=args.model, messages=messages, n=1, stop=None,
                                                     temperature=args.temperature)
             reply = response.choices[0].message.content
             conversation.add_turn("assistant", reply)

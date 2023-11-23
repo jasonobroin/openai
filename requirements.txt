@@ -15,7 +15,8 @@ frozenlist==1.3.0
 idna==3.3
 msgpack==1.0.4
 multidict==6.0.2
-openai==0.27.0
+nrfutil==6.0.0a1
+openai==1.3.5
 packaging==21.3
 pep517==0.13.0
 piccata==2.0.1
@@ -34,7 +35,7 @@ slack-bolt==1.16.4
 slack-sdk==3.20.2
 tomli==2.0.1
 tqdm==4.64.1
-typing_extensions==4.4.0
+typing_extensions==4.8.0
 urllib3==2.1.0
 wrapt==1.14.1
 yarl==1.7.2

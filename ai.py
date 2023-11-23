@@ -16,7 +16,9 @@ Issues
 
 import argparse
 import textwrap
-import openai
+from openai import OpenAI
+
+client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
 import os
 import time
 
@@ -24,7 +26,7 @@ from datetime import datetime, timedelta, timezone
 
 # Set the API key and model
 
-openai.api_key = os.environ['OPENAI_API_KEY']
+
 
 _print = print
 def pprint(*args, **kw):
@@ -46,7 +48,7 @@ def get_args():
 
 def list_models():
     '''List the various model types - current flat, but would be interesting to show hierarchy'''
-    models = openai.Model.list()
+    models = client.models.list()
 #    print(models)
 
     for model in models["data"]:
@@ -64,7 +66,7 @@ def main():
         # Set the prompt and generate text
         prompt = input('openai> ')
         #prompt = "What is the best way to work out the value of PI"
-        completions = openai.Completion.create(engine=args.model, prompt=prompt, max_tokens=1024, n=1, stop=None,
+        completions = client.completions.create(engine=args.model, prompt=prompt, max_tokens=1024, n=1, stop=None,
                                                temperature=args.temperature)
         message = completions.choices[0].text
 
