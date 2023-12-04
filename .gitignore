@@ -1,2 +1,7 @@
 chats
 *.log
+__pycache__
+discord_chats
+slack_chats
+images
+image.png

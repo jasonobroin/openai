@@ -1,0 +1,23 @@
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DALLE-3 Image Generator</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+<body>
+    <img id="img" src="" />
+    <script>
+    $(document).ready(function() {
+        setInterval(function() {
+            $.getJSON('/status', function(data) {
+                if (data.ready) {
+                    $("#img").attr('src', '/');
+                }
+            });
+        }, 1000); // Check every second
+    });
+    </script>
+</body>
+</html>
+``
