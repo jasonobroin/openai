@@ -22,11 +22,20 @@ import argparse
 import chatai
 from datetime import datetime
 import json
+import logging
 import os
 
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(name)-7s | %(levelname)-8s | %(module)s:%(lineno)-4d | %(message)s",
+    datefmt='%a %d %b %Y %I:%M:%S %p %z',
+    filename='slack.log',
+)
+botlog = logging.getLogger('sbot')
 
 # Create a dictionary of conversations
 conversations = {}
@@ -70,9 +79,9 @@ def get_conversation(user_id, channel_id):
 
 
 def process_chat_turn(conversation, message, model):
-    print(f"user asks: {message}")
+    botlog.info(f"user asks: {message}")
     response = chatai.take_turn(conversation, model, message)
-    print(f"assistant responses: {response}")
+    botlog.info(f"assistant responses: {response}")
 
     # This should be its own helper function. One issue here is that there
     # will be a line break if the split is midline
@@ -148,7 +157,7 @@ def handle_report_command(ack, body, respond):
     # Send each chunk as a separate message
     for chunk in response_chunks:
         respond(chunk)
-    print("Sent .report response")
+    botlog.info("Sent .report response")
 
 
 @app.command("/chats")

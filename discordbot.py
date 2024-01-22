@@ -30,7 +30,14 @@ import discord
 from discord.ext import commands
 import chatai
 
-handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(name)-7s | %(levelname)-8s | %(module)s:%(lineno)-4d | %(message)s",
+    datefmt='%a %d %b %Y %I:%M:%S %p %z',
+    filename='discord.log',
+)
+botlog = logging.getLogger('dbot')
+
 
 DESCRIPTION = '''Discord frontend to openAI'''
 
@@ -84,22 +91,22 @@ def get_conversation(author_id, server_id, channel_id):
 
 @client.event
 async def on_ready():
-    print("Logged in as a bot {0.user}".format(client))
+    botlog.info("Logged in as a bot {0.user}".format(client))
     # Not recommended to do this in on_ready()
 #    await client.change_presence(status=discord.Status.idle, activity=discord.Game('Hello there'))
 
 @client.event
 async def on_member_join(member):
-    print(f'{member} has joined a server')
+    botlog.info(f'{member} has joined a server')
 
 @client.event
 async def on_member_remove(member):
-    print(f'{member} has left a server')
+    botlog.info(f'{member} has left a server')
 
 def process_chat_turn(conversation, message, model):
-    print(f"user asks: {message}")
+    botlog.info(f"user asks: {message}")
     response = chatai.take_turn(conversation, model, message)
-    print(f"assistant responses: {response}")
+    botlog.info(f"assistant responses: {response}")
 
     # This should be its own helper function. One issue here is that there
     # will be a line break if the split is midline
@@ -223,7 +230,7 @@ async def report(ctx):
     # Send each chunk as a separate message
     for chunk in response_chunks:
         await ctx.send(chunk)
-    print("Sent .report response")
+    botlog.info("Sent .report response")
 
 @client.command()
 async def chats(ctx):
@@ -239,7 +246,7 @@ def main():
     global args
     args = get_args()
 
-    client.run(token, log_handler=handler)
+    client.run(token)
 
 
 if __name__ == "__main__":
