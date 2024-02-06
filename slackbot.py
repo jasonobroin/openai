@@ -67,15 +67,17 @@ def get_system_role(conversation):
     return conversation.get_system_role()
 
 
-def get_conversation(user_id, channel_id):
-#    print(f'get_conversation user {user_id}')
+def get_conversation(user_id, channel_id, thread_id):
+#    print(f'get_conversation user {user_id} {thread_id}')
 
     if user_id not in conversations:
         conversations[user_id] = {}
     if channel_id not in conversations[user_id]:
-        conversations[user_id][channel_id] = chatai.Conversation()
-        set_system_role(conversations[user_id][channel_id])
-    return conversations[user_id][channel_id]
+        conversations[user_id][channel_id] = {}
+    if thread_id not in conversations[user_id][channel_id]:
+        conversations[user_id][channel_id][thread_id] = chatai.Conversation()
+        set_system_role(conversations[user_id][channel_id][thread_id])
+    return conversations[user_id][channel_id][thread_id]
 
 
 def process_chat_turn(conversation, message, model):
@@ -110,11 +112,17 @@ def handle_message(event, say):
     user = event['user']
     channel = event['channel']
 
-    conversation = get_conversation(user, channel)
+    thread_ts = event.get('thread_ts', event.get('event_ts'))
+
+    # TODO: Consider getting the thread directly from Slack?
+    #       The advantage is that it doesn't matter if bot restarts
+    # Do this is the conversation locally is empty
+    conversation = get_conversation(user, channel, thread_ts)
+    botlog.debug(f"user={user} channel={channel} thread_id={thread_ts}: {conversation.num_turns()} entries")
     response_chunks = process_chat_turn(conversation, msg, args.model)
 
     for chunk in response_chunks:
-        say(chunk)
+        say(thread_ts=thread_ts, text=chunk)
 
     # print(f"rx message {text}")
     # if "hello" in text.lower():
@@ -127,7 +135,8 @@ def handle_new_command(ack, body, respond):
 #    print(f"user {body['user_id']} channel {body['channel_id']}")
     user = body['user_id']
     channel = body['channel_id']
-    conversation = get_conversation(user, channel)
+    thread_ts = body.get('thread_ts', body.get('event_ts'))
+    conversation = get_conversation(user, channel, thread_ts)
     conversation.clear()
     set_system_role(conversation)
     respond("Starting a new conversation")
@@ -141,7 +150,8 @@ def handle_report_command(ack, body, respond):
 
     user = body['user_id']
     channel = body['channel_id']
-    conversation = get_conversation(user, channel)
+    thread_ts = body.get('thread_ts', body.get('event_ts'))
+    conversation = get_conversation(user, channel, thread_ts)
     response = conversation.to_message()
 
     # Convert the dictionary to a JSON string so it displays nicer
@@ -166,8 +176,9 @@ def handle_chat_command(ack, body, respond):
     ack()
     for user in conversations:
         for chan in conversations[user]:
-            msg = f"Chat stored User: {user} Chan: {chan} with {int(conversations[user][chan].num_turns())} entries"
-            respond (msg)
+            for thread in conversations[user][chan]:
+                msg = f"Chat stored User: {user} Chan: {chan} Thread {thread} with {int(conversations[user][chan][thread].num_turns())} entries"
+                respond (msg)
     respond("End of chats")
 
 @app.command("/save")
@@ -180,7 +191,8 @@ def handle_save_command(ack, body, respond):
 
     user = body['user_id']
     channel = body['channel_id']
-    conversation = get_conversation(user, channel)
+    thread_ts = body.get('thread_ts', body.get('event_ts'))
+    conversation = get_conversation(user, channel, thread_ts)
     filename = chatai.write_chat(args.directory, save_time, conversation)
     msg = f'Chat written to {filename}'
     respond(msg)
@@ -191,6 +203,7 @@ def main():
     args = get_args()
 
     # Start the Socket Mode handler
+    global handler
     handler = SocketModeHandler(app, app_token=os.environ["SLACK_APP_TOKEN"])
     handler.start()
 
