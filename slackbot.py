@@ -27,7 +27,9 @@ import os
 
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
+from slack_sdk import WebClient
 
+import pprint as pp
 
 logging.basicConfig(
     level=logging.INFO,
@@ -104,6 +106,20 @@ def process_chat_turn(conversation, message, model):
 
     return response_chunks
 
+def load_conversation(conversation, conversation_history):
+    """
+    Load a slack conversation thread into our conversation object
+    """
+
+    for entry in conversation_history[:-1]:
+        if entry['type'] == 'message':
+            role = 'assistant' if 'bot_id' in entry else 'user'
+            conversation.add_turn(role, entry['text'])
+
+    if conversation.num_turns() > 1:
+        turn = conversation.get_entry(1).content
+        botlog.info(f"Reloaded conversation from slack '{turn[:20]} ... ")
+
 
 # Define a function to handle incoming messages
 @app.event("message")
@@ -114,10 +130,13 @@ def handle_message(event, say):
 
     thread_ts = event.get('thread_ts', event.get('event_ts'))
 
-    # TODO: Consider getting the thread directly from Slack?
-    #       The advantage is that it doesn't matter if bot restarts
-    # Do this is the conversation locally is empty
     conversation = get_conversation(user, channel, thread_ts)
+    if conversation.num_turns() == 0:
+        # Reload the conversation if we don't have it in memory
+        result = slack_web_client.conversations_replies(channel=channel, ts=thread_ts)
+        conversation_history = result["messages"]
+        load_conversation(conversation, conversation_history)
+
     botlog.debug(f"user={user} channel={channel} thread_id={thread_ts}: {conversation.num_turns()} entries")
     response_chunks = process_chat_turn(conversation, msg, args.model)
 
@@ -201,6 +220,10 @@ def handle_save_command(ack, body, respond):
 def main():
     global args
     args = get_args()
+
+    # Initialize a Web API client
+    global slack_web_client
+    slack_web_client = WebClient(token=os.environ["SLACK_BOT_TOKEN"])
 
     # Start the Socket Mode handler
     global handler

@@ -77,6 +77,9 @@ class Conversation:
         """Return the number of turns in the conversation"""
         return int((len(self.turns)-1) / 2)
 
+    def get_entry(self, num):
+        return self.turns[num] if num <= len(self.turns) else Turn("","")
+
     def __str__(self):
         conversation_str = ""
         for turn in self.turns:
