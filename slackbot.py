@@ -123,12 +123,20 @@ def load_conversation(conversation, conversation_history):
 
 # Define a function to handle incoming messages
 @app.event("message")
-def handle_message(event, say):
+def handle_message(event, say, client):
     msg = event["text"]
     user = event['user']
     channel = event['channel']
 
     thread_ts = event.get('thread_ts', event.get('event_ts'))
+
+    # Different response / thread depending on whether this is the first message or not
+    if thread_ts != event.get('event_ts'):
+        slack_web_client.chat_postEphemeral(channel=channel, thread_ts=thread_ts, text='ChatGPT is thinking...',
+                                            user=user)
+    else:
+        slack_web_client.chat_postEphemeral(channel=channel, text='ChatGPT is thinking... will create new thread',
+                                            user=user)
 
     conversation = get_conversation(user, channel, thread_ts)
     if conversation.num_turns() == 0:
@@ -141,11 +149,7 @@ def handle_message(event, say):
     response_chunks = process_chat_turn(conversation, msg, args.model)
 
     for chunk in response_chunks:
-        say(thread_ts=thread_ts, text=chunk)
-
-    # print(f"rx message {text}")
-    # if "hello" in text.lower():
-    #     say(f"Hi there, <@{event['user']}>!")
+        client.chat_postMessage(channel=channel, thread_ts=thread_ts, text=chunk)
 
 @app.command("/new")
 def handle_new_command(ack, body, respond):
