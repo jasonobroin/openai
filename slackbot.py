@@ -151,9 +151,7 @@ def handle_message(event, say, client):
     for chunk in response_chunks:
         client.chat_postMessage(channel=channel, thread_ts=thread_ts, text=chunk)
 
-@app.command("/new")
 def handle_new_command(ack, body, respond):
-    ack()
 
 #    print(f"user {body['user_id']} channel {body['channel_id']}")
     user = body['user_id']
@@ -164,12 +162,10 @@ def handle_new_command(ack, body, respond):
     set_system_role(conversation)
     respond("Starting a new conversation")
 
-@app.command("/report")
 def handle_report_command(ack, body, respond):
     """Provide a JSON report of the current conversation"""
     # This should be its own helper function. One issue here is that there
     # will be a line break if the split is midline
-    ack()
 
     user = body['user_id']
     channel = body['channel_id']
@@ -193,10 +189,8 @@ def handle_report_command(ack, body, respond):
     botlog.info("Sent .report response")
 
 
-@app.command("/chats")
 def handle_chat_command(ack, body, respond):
     """Report summary information on all chats"""
-    ack()
     for user in conversations:
         for chan in conversations[user]:
             for thread in conversations[user][chan]:
@@ -204,13 +198,10 @@ def handle_chat_command(ack, body, respond):
                 respond (msg)
     respond("End of chats")
 
-@app.command("/save")
 def handle_save_command(ack, body, respond):
     """Store a chat to a file"""
     save_time = datetime.now()
     save_time = save_time.strftime("%Y-%m-%d %H:%M:%S")
-
-    ack()
 
     user = body['user_id']
     channel = body['channel_id']
@@ -219,6 +210,40 @@ def handle_save_command(ack, body, respond):
     filename = chatai.write_chat(args.directory, save_time, conversation)
     msg = f'Chat written to {filename}'
     respond(msg)
+
+# TODO: Most of these commands only make sense in the context of a thread
+# but slack doesn't support slack commands in a thread
+# One option is to have an ability to list the threads via a slash command and then be able
+# to select an operation via a GUI element... don't know how to do that yet
+#
+# Another option is to do it by recognizing a command in a thread, such as .save
+#
+# A third option is to pass the thread ID in, but that's rather sad!!
+chatgpt_cmds = {
+    # 'save': handle_save_command,
+    'chats': handle_chat_command,
+    # 'report': handle_report_command,
+    # 'new': handle_new_command
+}
+
+@app.command("/chatgpt")
+def handle_chatgpt_command(ack, body, respond):
+    ack()
+
+    text = body['text']
+
+    if text == "":
+        botlog.info('No /chatgpt command specified')
+        respond("")
+
+    cmd = text.split(' ')[0].lower()
+
+    if cmd in chatgpt_cmds:
+        function = chatgpt_cmds[cmd]
+        return function(ack, body, respond)
+    else:
+        botlog.info('Invalid /chatgpt command specified')
+        respond(f"Unknown command: Try one of {[cmd for cmd in chatgpt_cmds]}")
 
 
 def main():
