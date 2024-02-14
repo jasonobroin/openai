@@ -69,7 +69,7 @@ def get_system_role(conversation):
     return conversation.get_system_role()
 
 
-def get_conversation(user_id, channel_id, thread_id):
+def get_conversation(user_id, channel_id, thread_id, add_final_msg = True):
 #    print(f'get_conversation user {user_id} {thread_id}')
 
     if user_id not in conversations:
@@ -79,6 +79,13 @@ def get_conversation(user_id, channel_id, thread_id):
     if thread_id not in conversations[user_id][channel_id]:
         conversations[user_id][channel_id][thread_id] = chatai.Conversation()
         set_system_role(conversations[user_id][channel_id][thread_id])
+
+        # Reload the conversation if we don't have it in memory
+        result = slack_web_client.conversations_replies(channel=channel_id, ts=thread_id)
+        conversation_history = result["messages"]
+        if conversation_history:
+            load_conversation(conversations[user_id][channel_id][thread_id], conversation_history, add_final_msg)
+
     return conversations[user_id][channel_id][thread_id]
 
 
@@ -106,19 +113,20 @@ def process_chat_turn(conversation, message, model):
 
     return response_chunks
 
-def load_conversation(conversation, conversation_history):
+def load_conversation(conversation, conversation_history, add_final_msg):
     """
     Load a slack conversation thread into our conversation object
     """
 
-    for entry in conversation_history[:-1]:
+    # We might want to skip the final message depending what circumstances
+    # we have reloaded the conversation
+    end = None if add_final_msg else -1
+    for i, entry in enumerate(conversation_history[:end]):
         if entry['type'] == 'message':
             role = 'assistant' if 'bot_id' in entry else 'user'
             conversation.add_turn(role, entry['text'])
-
-    if conversation.num_turns() > 1:
-        turn = conversation.get_entry(1).content
-        botlog.info(f"Reloaded conversation from slack '{turn[:20]} ... ")
+        if i == 0:
+            botlog.info(f"Reloaded conversation from slack '{entry['text'][:20]} ... ")
 
 
 # Define a function to handle incoming messages
@@ -138,12 +146,7 @@ def handle_message(event, say, client):
         slack_web_client.chat_postEphemeral(channel=channel, text='ChatGPT is thinking... will create new thread',
                                             user=user)
 
-    conversation = get_conversation(user, channel, thread_ts)
-    if conversation.num_turns() == 0:
-        # Reload the conversation if we don't have it in memory
-        result = slack_web_client.conversations_replies(channel=channel, ts=thread_ts)
-        conversation_history = result["messages"]
-        load_conversation(conversation, conversation_history)
+    conversation = get_conversation(user, channel, thread_ts, False)
 
     botlog.debug(f"user={user} channel={channel} thread_id={thread_ts}: {conversation.num_turns()} entries")
     response_chunks = process_chat_turn(conversation, msg, args.model)
@@ -198,18 +201,57 @@ def handle_chat_command(ack, body, respond):
                 respond (msg)
     respond("End of chats")
 
-def handle_save_command(ack, body, respond):
+def save_command(user, channel, thread_ts):
     """Store a chat to a file"""
     save_time = datetime.now()
     save_time = save_time.strftime("%Y-%m-%d %H:%M:%S")
+    # TODO: Would be nice if we had a one line summary of conversation in the title
 
-    user = body['user_id']
-    channel = body['channel_id']
-    thread_ts = body.get('thread_ts', body.get('event_ts'))
     conversation = get_conversation(user, channel, thread_ts)
     filename = chatai.write_chat(args.directory, save_time, conversation)
     msg = f'Chat written to {filename}'
-    respond(msg)
+    botlog.info(msg)
+
+# The open_modal shortcut opens a plain old modal
+# Shortcuts require the command scope
+@app.shortcut("save_thread")
+def open_modal(ack, shortcut, client, logger):
+    # Acknowledge shortcut request
+    ack()
+
+    user = shortcut['user']['id']
+    channel = shortcut['channel']['id']
+    thread_ts = shortcut['message']['thread_ts']
+
+    try:
+        # Call the views.open method using the WebClient passed to listeners
+        # Look at a way where we can export the JSON and store file on user's file system rather than backend
+        result = client.views_open(
+            trigger_id=shortcut["trigger_id"],
+            view={
+                "type": "modal",
+                "title": {"type": "plain_text", "text": "ChatGPT - Save Thread"},
+                "close": {"type": "plain_text", "text": "Close"},
+                "blocks": [
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "The current conversation thread has been saved to the server's slack_chats directory",
+                        },
+                    },
+                ],
+            },
+        )
+        # logger.info(f"shortcut = {shortcut['message']['thread_ts']}")
+        logger.info(f"result = {result}")
+
+    except SlackApiError as e:
+        logger.error("Error creating conversation: {}".format(e))
+
+    # TODO: We should do this after confirming the modal conversation box, rather than here
+    save_command(user, channel, thread_ts)
+
 
 # TODO: Most of these commands only make sense in the context of a thread
 # but slack doesn't support slack commands in a thread
@@ -231,10 +273,6 @@ def handle_chatgpt_command(ack, body, respond):
     ack()
 
     text = body['text']
-
-    if text == "":
-        botlog.info('No /chatgpt command specified')
-        respond("")
 
     cmd = text.split(' ')[0].lower()
 
