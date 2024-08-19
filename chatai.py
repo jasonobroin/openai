@@ -105,7 +105,7 @@ def get_args():
 
     parser.add_argument("-l", "--list-models", help="List available models", action="store_true")
     parser.add_argument("-t", "--temperature", help="Set the model's temperature from 0 to 1. 0 is more predictable; 1 more creative", type=float, default=0.6)
-    parser.add_argument("-m", "--model", help="Select the model to use", default="gpt-4") # gpt-4
+    parser.add_argument("-m", "--model", help="Select the model to use", default="gpt-4o") # Alt: gpt-4o-mini, chatgpt-4o-latest
     parser.add_argument("-u", "--usage", help="Report usage", action="store_true")
     parser.add_argument("-d", "--debug", help="Report debug info", action="store_true")
     parser.add_argument("-r", "--role", help="Describe the system's role", default="You are a helpful assistant")
@@ -120,8 +120,8 @@ def list_models():
     models = client.models.list()
 #    print(models)
 
-    for model in models["data"]:
-        print(model["id"])
+    for model in models.data:
+        print(model.id)
     print()
 
 
