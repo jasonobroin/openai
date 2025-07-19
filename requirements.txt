@@ -20,7 +20,7 @@ packaging==21.3
 pep517==0.13.0
 piccata==2.0.1
 pip-tools==6.11.0
-protobuf==4.21.7
+protobuf>=4.25.8
 pycparser==2.21
 pyparsing==3.0.9
 pyspinel==1.0.3
